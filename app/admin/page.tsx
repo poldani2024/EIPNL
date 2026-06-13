@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { addSlot, cancelBooking, COORDINATOR_EMAIL, deleteSlot, getSlotsWithBookings } from '@/lib/clientStorage';
+import { addDays, addMinutes, formatWeekRange, getCurrentMonday, getTimeRows, getWeekDays, SLOT_DURATIONS, timeToMinutes } from '@/lib/calendar';
 import Header from '@/components/Header';
 
 interface SlotWithBooking {
@@ -45,11 +46,9 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // New slot form
-  const [newDate, setNewDate] = useState('');
-  const [newStart, setNewStart] = useState('');
-  const [newEnd, setNewEnd] = useState('');
-  const [addingSlot, setAddingSlot] = useState(false);
+  const [selectedDuration, setSelectedDuration] = useState(30);
+  const [addingSlotKey, setAddingSlotKey] = useState<string | null>(null);
+  const [weekStart, setWeekStart] = useState(() => getCurrentMonday());
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -103,29 +102,39 @@ export default function AdminPage() {
     setSlots([]);
   }
 
-  async function handleAddSlot(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newDate || !newStart || !newEnd) {
-      setMessage({ type: 'error', text: 'Completá todos los campos del turno.' });
+  function handleAddSlotFromCalendar(date: string, startTime: string) {
+    const endTime = addMinutes(startTime, selectedDuration);
+    const slotKey = `${date}-${startTime}`;
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+    const calendarEndMinutes = timeToMinutes('20:00');
+    const hasConflict = slots.some(slot => {
+      if (slot.date !== date) return false;
+      const slotStart = timeToMinutes(slot.startTime);
+      const slotEnd = timeToMinutes(slot.endTime);
+      return startMinutes < slotEnd && endMinutes > slotStart;
+    });
+
+    if (endMinutes > calendarEndMinutes) {
+      setMessage({ type: 'error', text: 'El turno no puede terminar después de las 20:00 hs.' });
       return;
     }
-    if (newEnd <= newStart) {
-      setMessage({ type: 'error', text: 'El horario de fin debe ser posterior al de inicio.' });
+
+    if (hasConflict) {
+      setMessage({ type: 'error', text: 'Ya existe un turno publicado que se superpone con ese día y horario.' });
       return;
     }
-    setAddingSlot(true);
+
+    setAddingSlotKey(slotKey);
     setMessage(null);
     try {
-      addSlot(newDate, newStart, newEnd);
-      setMessage({ type: 'success', text: 'Turno agregado correctamente.' });
-      setNewDate('');
-      setNewStart('');
-      setNewEnd('');
+      addSlot(date, startTime, endTime);
+      setMessage({ type: 'success', text: `Turno de ${selectedDuration} minutos agregado correctamente.` });
       fetchSlots();
     } catch {
       setMessage({ type: 'error', text: 'Error de conexión.' });
     } finally {
-      setAddingSlot(false);
+      setAddingSlotKey(null);
     }
   }
 
@@ -258,6 +267,8 @@ export default function AdminPage() {
   const sortedDates = Object.keys(grouped).sort();
   const bookedCount = slots.filter(s => s.booking).length;
   const totalCount = slots.length;
+  const weekDays = getWeekDays(weekStart);
+  const timeRows = getTimeRows();
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -323,49 +334,106 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* Add slot form */}
+        {/* Calendar add slot */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-          <h2 className="text-lg font-bold text-[#1b2a63] mb-4">Agregar nuevo turno</h2>
-          <form onSubmit={handleAddSlot} className="flex flex-wrap gap-3 items-end">
-            <div className="flex-1 min-w-[140px]">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Fecha</label>
-              <input
-                type="date"
-                value={newDate}
-                onChange={e => setNewDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b2a63] outline-none text-sm"
-                required
-              />
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-[#1b2a63]">Publicar turnos en calendario</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Lunes a sábado, de 08:00 a 20:00 hs. Al hacer clic se crea un turno de 30 minutos por defecto.
+              </p>
             </div>
-            <div className="flex-1 min-w-[110px]">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Desde</label>
-              <input
-                type="time"
-                value={newStart}
-                onChange={e => setNewStart(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b2a63] outline-none text-sm"
-                required
-              />
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Duración</label>
+              <select
+                value={selectedDuration}
+                onChange={e => setSelectedDuration(Number(e.target.value))}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-[#1b2a63]"
+              >
+                {SLOT_DURATIONS.map(duration => (
+                  <option key={duration} value={duration}>{duration} minutos</option>
+                ))}
+              </select>
             </div>
-            <div className="flex-1 min-w-[110px]">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Hasta</label>
-              <input
-                type="time"
-                value={newEnd}
-                onChange={e => setNewEnd(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b2a63] outline-none text-sm"
-                required
-              />
-            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <button
-              type="submit"
-              disabled={addingSlot}
-              className="bg-[#1b2a63] hover:bg-[#14215a] disabled:opacity-60 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors"
+              onClick={() => setWeekStart(addDays(weekStart, -7))}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 hover:border-[#1b2a63]"
             >
-              {addingSlot ? 'Agregando...' : '+ Agregar'}
+              ← Semana anterior
             </button>
-          </form>
+            <span className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-[#1b2a63]">
+              {formatWeekRange(weekStart)}
+            </span>
+            <button
+              onClick={() => setWeekStart(addDays(weekStart, 7))}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 hover:border-[#1b2a63]"
+            >
+              Semana siguiente →
+            </button>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-gray-100">
+            <div className="min-w-[900px]">
+              <div className="grid grid-cols-[88px_repeat(6,minmax(120px,1fr))] border-b border-gray-100 bg-gray-50">
+                <div className="px-3 py-3 text-xs font-bold uppercase tracking-wide text-gray-400">Hora</div>
+                {weekDays.map(day => (
+                  <div key={day.dateKey} className="px-3 py-3 text-center">
+                    <div className="text-sm font-bold text-[#1b2a63]">{day.label}</div>
+                    <div className="text-xs text-gray-500 capitalize">{day.dayNumber} {day.monthLabel}</div>
+                  </div>
+                ))}
+              </div>
+
+              {timeRows.map(time => (
+                <div key={time} className="grid grid-cols-[88px_repeat(6,minmax(120px,1fr))] border-b border-gray-100 last:border-b-0">
+                  <div className="px-3 py-2 text-sm font-semibold text-gray-500 bg-gray-50">{time}</div>
+                  {weekDays.map(day => {
+                    const slot = slots.find(s => s.date === day.dateKey && s.startTime === time);
+                    const coveringSlot = slots.find(s => {
+                      if (s.date !== day.dateKey || s.startTime === time) return false;
+                      const rowMinutes = timeToMinutes(time);
+                      return rowMinutes > timeToMinutes(s.startTime) && rowMinutes < timeToMinutes(s.endTime);
+                    });
+                    const slotKey = `${day.dateKey}-${time}`;
+                    return (
+                      <div key={slotKey} className="min-h-[66px] border-l border-gray-100 p-1.5">
+                        {slot ? (
+                          <div className={`h-full rounded-xl border p-2 text-xs ${slot.booking ? 'border-green-200 bg-green-50' : 'border-blue-200 bg-blue-50'}`}>
+                            <div className="font-bold text-gray-800">{slot.startTime} - {slot.endTime}</div>
+                            <div className="mt-1 text-[11px] font-semibold text-gray-500">
+                              {slot.booking ? `Reservado: ${slot.booking.studentName}` : 'Publicado / disponible'}
+                            </div>
+                            <button
+                              onClick={() => handleDeleteSlot(slot.id, !!slot.booking)}
+                              disabled={deletingId === slot.id}
+                              className="mt-2 w-full rounded-lg border border-red-200 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              {deletingId === slot.id ? 'Eliminando...' : 'Eliminar'}
+                            </button>
+                          </div>
+                        ) : coveringSlot ? (
+                          <div className="h-full rounded-xl border border-gray-200 bg-gray-100 p-2 text-xs font-semibold text-gray-400">
+                            Continúa {coveringSlot.startTime} - {coveringSlot.endTime}
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleAddSlotFromCalendar(day.dateKey, time)}
+                            disabled={addingSlotKey === slotKey}
+                            className="h-full w-full rounded-xl border border-dashed border-gray-300 bg-gray-50/70 p-2 text-xs font-semibold text-gray-400 hover:border-[#1b2a63] hover:bg-blue-50 hover:text-[#1b2a63] disabled:opacity-50"
+                          >
+                            {addingSlotKey === slotKey ? 'Agregando...' : `+ ${time}`}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Slots list */}

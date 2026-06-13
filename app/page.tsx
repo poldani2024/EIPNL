@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { cancelBooking, createBooking, getBookingsByEmail, getSlotsWithBookings } from '@/lib/clientStorage';
+import { addDays, formatWeekRange, getCurrentMonday, getTimeRows, getWeekDays, timeToMinutes } from '@/lib/calendar';
 import Header from '@/components/Header';
 import UserSetup from '@/components/UserSetup';
 
@@ -29,15 +30,6 @@ function formatDate(dateStr: string) {
   });
 }
 
-function groupSlotsByDate(slots: SlotWithBooking[]) {
-  const grouped: Record<string, SlotWithBooking[]> = {};
-  slots.forEach(slot => {
-    if (!grouped[slot.date]) grouped[slot.date] = [];
-    grouped[slot.date].push(slot);
-  });
-  return grouped;
-}
-
 export default function HomePage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
@@ -46,6 +38,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [bookingSlotId, setBookingSlotId] = useState<string | null>(null);
+  const [weekStart, setWeekStart] = useState(() => getCurrentMonday());
 
   useEffect(() => {
     window.setTimeout(() => {
@@ -132,8 +125,8 @@ export default function HomePage() {
     );
   }
 
-  const grouped = groupSlotsByDate(slots);
-  const sortedDates = Object.keys(grouped).sort();
+  const weekDays = getWeekDays(weekStart);
+  const timeRows = getTimeRows();
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -199,83 +192,118 @@ export default function HomePage() {
           ) : null;
         })()}
 
-        {/* Slots */}
-        {!loading && slots.length > 0 && (
-          <h2 className="text-lg font-bold text-[#1b2a63] mb-4">Turnos disponibles</h2>
-        )}
+        {/* Calendar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-[#1b2a63]">Calendario de turnos disponibles</h2>
+            <p className="text-sm text-gray-500">Lunes a sábado, de 08:00 a 20:00 hs. Todos los horarios están en formato 24 hs.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setWeekStart(addDays(weekStart, -7))}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 hover:border-[#1b2a63]"
+            >
+              ← Semana anterior
+            </button>
+            <span className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-[#1b2a63]">
+              {formatWeekRange(weekStart)}
+            </span>
+            <button
+              onClick={() => setWeekStart(addDays(weekStart, 7))}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 hover:border-[#1b2a63]"
+            >
+              Semana siguiente →
+            </button>
+          </div>
+        </div>
 
         {loading ? (
           <div className="text-center py-16 text-gray-400">Cargando turnos...</div>
         ) : slots.length === 0 ? (
-          <div className="text-center py-16">
+          <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 mb-6">
             <div className="text-5xl mb-3">📅</div>
             <p className="text-gray-500 font-medium text-lg">No hay turnos disponibles por el momento.</p>
             <p className="text-gray-400 text-sm mt-1">La coordinadora publicará los horarios próximamente.</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {sortedDates.map(date => (
-              <div key={date}>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 capitalize pl-1">
-                  {formatDate(date)}
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {grouped[date].map(slot => {
-                    const isTaken = !!slot.booking;
-                    const isMySlot = myBooking?.slotId === slot.id;
-                    const isBookingThis = bookingSlotId === slot.id;
+          <div className="overflow-x-auto bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <div className="min-w-[900px]">
+              <div className="grid grid-cols-[88px_repeat(6,minmax(120px,1fr))] border-b border-gray-100 bg-gray-50">
+                <div className="px-3 py-3 text-xs font-bold uppercase tracking-wide text-gray-400">Hora</div>
+                {weekDays.map(day => (
+                  <div key={day.dateKey} className="px-3 py-3 text-center">
+                    <div className="text-sm font-bold text-[#1b2a63]">{day.label}</div>
+                    <div className="text-xs text-gray-500 capitalize">{day.dayNumber} {day.monthLabel}</div>
+                  </div>
+                ))}
+              </div>
+
+              {timeRows.map(time => (
+                <div key={time} className="grid grid-cols-[88px_repeat(6,minmax(120px,1fr))] border-b border-gray-100 last:border-b-0">
+                  <div className="px-3 py-2 text-sm font-semibold text-gray-500 bg-gray-50">{time}</div>
+                  {weekDays.map(day => {
+                    const slot = slots.find(s => s.date === day.dateKey && s.startTime === time);
+                    const coveringSlot = slots.find(s => {
+                      if (s.date !== day.dateKey || s.startTime === time) return false;
+                      const rowMinutes = timeToMinutes(time);
+                      return rowMinutes > timeToMinutes(s.startTime) && rowMinutes < timeToMinutes(s.endTime);
+                    });
+                    const isTaken = !!slot?.booking;
+                    const isMySlot = slot ? myBooking?.slotId === slot.id : false;
+                    const isBookingThis = slot ? bookingSlotId === slot.id : false;
                     const hasOtherBooking = !!myBooking && !isMySlot;
 
                     return (
-                      <div
-                        key={slot.id}
-                        className={`rounded-xl border-2 p-4 transition-all ${
-                          isMySlot
-                            ? 'border-[#1b2a63] bg-blue-50 shadow-sm'
-                            : isTaken
-                            ? 'border-gray-200 bg-gray-50 opacity-60'
-                            : 'border-gray-200 bg-white hover:border-[#1b2a63] hover:shadow-sm cursor-default'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <div className="font-bold text-gray-800 text-xl">{slot.startTime}</div>
-                            <div className="text-gray-400 text-sm">hasta {slot.endTime} hs</div>
-                          </div>
-                          <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                      <div key={`${day.dateKey}-${time}`} className="min-h-[64px] border-l border-gray-100 p-1.5">
+                        {slot ? (
+                          <div className={`h-full rounded-xl border p-2 text-xs ${
                             isMySlot
-                              ? 'bg-[#1b2a63] text-white'
+                              ? 'border-[#1b2a63] bg-blue-50'
                               : isTaken
-                              ? 'bg-gray-200 text-gray-500'
-                              : 'bg-green-100 text-green-700'
+                              ? 'border-gray-200 bg-gray-50 opacity-70'
+                              : 'border-green-200 bg-green-50'
                           }`}>
-                            {isMySlot ? 'Mi turno' : isTaken ? 'Ocupado' : 'Disponible'}
-                          </span>
-                        </div>
-
-                        {!isTaken && !hasOtherBooking && (
-                          <button
-                            onClick={() => handleBook(slot.id)}
-                            disabled={isBookingThis}
-                            className="w-full bg-[#1b2a63] hover:bg-[#14215a] disabled:opacity-60 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
-                          >
-                            {isBookingThis ? 'Reservando...' : 'Reservar turno'}
-                          </button>
-                        )}
-
-                        {!isTaken && hasOtherBooking && (
-                          <p className="text-xs text-gray-400 text-center pt-1">
-                            Ya tenés un turno reservado
-                          </p>
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="font-bold text-gray-800">{slot.startTime} - {slot.endTime}</span>
+                              <span className={`rounded-full px-1.5 py-0.5 font-semibold ${
+                                isMySlot
+                                  ? 'bg-[#1b2a63] text-white'
+                                  : isTaken
+                                  ? 'bg-gray-200 text-gray-500'
+                                  : 'bg-green-100 text-green-700'
+                              }`}>
+                                {isMySlot ? 'Mi turno' : isTaken ? 'Ocupado' : 'Libre'}
+                              </span>
+                            </div>
+                            {!isTaken && !hasOtherBooking && (
+                              <button
+                                onClick={() => handleBook(slot.id)}
+                                disabled={isBookingThis}
+                                className="mt-2 w-full rounded-lg bg-[#1b2a63] px-2 py-1.5 font-semibold text-white hover:bg-[#14215a] disabled:opacity-60"
+                              >
+                                {isBookingThis ? 'Reservando...' : 'Reservar'}
+                              </button>
+                            )}
+                            {!isTaken && hasOtherBooking && (
+                              <p className="mt-2 text-center text-[11px] text-gray-400">Ya tenés un turno</p>
+                            )}
+                          </div>
+                        ) : coveringSlot ? (
+                          <div className="h-full rounded-xl border border-gray-200 bg-gray-100 p-2 text-xs font-semibold text-gray-400">
+                            Continúa {coveringSlot.startTime} - {coveringSlot.endTime}
+                          </div>
+                        ) : (
+                          <div className="h-full rounded-xl border border-dashed border-gray-200 bg-gray-50/60" />
                         )}
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
+
       </main>
 
       <footer className="text-center text-xs text-gray-400 py-4 mt-8 border-t border-gray-200">
