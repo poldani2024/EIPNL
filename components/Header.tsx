@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/EIPNL';
+
 interface HeaderProps {
   showAdminLink?: boolean;
 }
@@ -14,7 +16,7 @@ export default function Header({ showAdminLink }: HeaderProps) {
         <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
           {/* Logo de la escuela. Reemplazar /logo.png por el archivo oficial si se dispone de él. */}
           <Image
-            src="/logo-icon.svg"
+            src={`${basePath}/logo-icon.svg`}
             alt="PNL & Coaching"
             width={48}
             height={48}
