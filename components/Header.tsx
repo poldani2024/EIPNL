@@ -18,8 +18,8 @@ export default function Header({ showAdminLink }: HeaderProps) {
           <Image
             src={`${basePath}/Escuela Iberoamericana.png`}
             alt="PNL & Coaching"
-            width={48}
-            height={48}
+            width={300}
+            height={300}
             className="object-contain flex-shrink-0"
             priority
           />
