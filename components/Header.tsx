@@ -9,33 +9,42 @@ interface HeaderProps {
 
 export default function Header({ showAdminLink }: HeaderProps) {
   return (
-    <header className="bg-[#1a3a6b] text-white shadow-lg">
-      <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-          <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm">
-            {/* Replace /logo.svg with your school logo */}
-            <Image
-              src="/logo.svg"
-              alt="Logo EIPNL"
-              width={52}
-              height={52}
-              className="object-contain"
-            />
-          </div>
-          <div>
-            <div className="font-bold text-lg leading-tight">EIPNL</div>
-            <div className="text-blue-200 text-xs">Agenda de Turnos</div>
+    <header className="bg-white border-b border-gray-200 shadow-sm">
+      <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+        <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+          {/* Logo de la escuela. Reemplazar /logo.png por el archivo oficial si se dispone de él. */}
+          <Image
+            src="/logo-icon.svg"
+            alt="PNL & Coaching"
+            width={48}
+            height={48}
+            className="object-contain flex-shrink-0"
+            priority
+          />
+          <div className="leading-none">
+            <div className="flex items-baseline gap-1">
+              <span className="text-[#2f9e9e] font-extrabold text-xl tracking-tight">PNL</span>
+              <span className="text-gray-500 font-semibold text-sm">&amp; COACHING</span>
+            </div>
+            <div className="mt-1">
+              <span className="inline-block bg-[#1b2a63] text-white text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded">
+                Escuela Iberoamericana
+              </span>
+            </div>
           </div>
         </Link>
 
-        {showAdminLink && (
-          <Link
-            href="/admin"
-            className="text-sm bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-md transition-colors"
-          >
-            Panel Admin
-          </Link>
-        )}
+        <div className="flex items-center gap-3">
+          <span className="hidden sm:inline text-sm text-gray-400">Agenda de Turnos</span>
+          {showAdminLink && (
+            <Link
+              href="/admin"
+              className="text-sm text-[#2f9e9e] hover:text-[#1b2a63] font-medium transition-colors"
+            >
+              Coordinación
+            </Link>
+          )}
+        </div>
       </div>
     </header>
   );

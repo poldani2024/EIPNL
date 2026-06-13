@@ -236,13 +236,13 @@ export default function AdminPage() {
         <main className="flex-1 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-md p-8 w-full max-w-md border border-gray-100">
             <div className="flex justify-center mb-4">
-              <div className="w-12 h-12 bg-[#1a3a6b] rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-[#1b2a63] rounded-xl flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-[#1a3a6b] mb-1 text-center">Panel de Coordinación</h2>
+            <h2 className="text-2xl font-bold text-[#1b2a63] mb-1 text-center">Panel de Coordinación</h2>
             <p className="text-gray-500 text-sm text-center mb-6">
               Ingresá con tu email de coordinadora para acceder
             </p>
@@ -254,7 +254,7 @@ export default function AdminPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="coordinadora@eipnl.edu.ar"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1a3a6b] focus:border-transparent outline-none transition"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b2a63] focus:border-transparent outline-none transition"
                   required
                 />
               </div>
@@ -264,7 +264,7 @@ export default function AdminPage() {
               <button
                 type="submit"
                 disabled={loginLoading}
-                className="w-full bg-[#1a3a6b] hover:bg-[#14306b] disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg transition-colors"
+                className="w-full bg-[#1b2a63] hover:bg-[#14215a] disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg transition-colors"
               >
                 {loginLoading ? 'Verificando...' : 'Ingresar'}
               </button>
@@ -288,7 +288,7 @@ export default function AdminPage() {
         {/* Admin bar */}
         <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 mb-5 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2">
-            <span className="text-xs bg-[#1a3a6b] text-white px-2 py-0.5 rounded-full font-semibold">
+            <span className="text-xs bg-[#1b2a63] text-white px-2 py-0.5 rounded-full font-semibold">
               COORDINADORA
             </span>
             <span className="text-sm text-gray-600">{coordinatorEmail}</span>
@@ -317,7 +317,7 @@ export default function AdminPage() {
         {/* Stats + Export */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
-            <div className="text-3xl font-bold text-[#1a3a6b]">{totalCount}</div>
+            <div className="text-3xl font-bold text-[#1b2a63]">{totalCount}</div>
             <div className="text-sm text-gray-500 mt-1">Turnos publicados</div>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
@@ -346,7 +346,7 @@ export default function AdminPage() {
 
         {/* Add slot form */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-          <h2 className="text-lg font-bold text-[#1a3a6b] mb-4">Agregar nuevo turno</h2>
+          <h2 className="text-lg font-bold text-[#1b2a63] mb-4">Agregar nuevo turno</h2>
           <form onSubmit={handleAddSlot} className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[140px]">
               <label className="block text-xs font-semibold text-gray-600 mb-1">Fecha</label>
@@ -355,7 +355,7 @@ export default function AdminPage() {
                 value={newDate}
                 onChange={e => setNewDate(e.target.value)}
                 min={new Date().toISOString().split('T')[0]}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1a3a6b] outline-none text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b2a63] outline-none text-sm"
                 required
               />
             </div>
@@ -365,7 +365,7 @@ export default function AdminPage() {
                 type="time"
                 value={newStart}
                 onChange={e => setNewStart(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1a3a6b] outline-none text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b2a63] outline-none text-sm"
                 required
               />
             </div>
@@ -375,14 +375,14 @@ export default function AdminPage() {
                 type="time"
                 value={newEnd}
                 onChange={e => setNewEnd(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1a3a6b] outline-none text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b2a63] outline-none text-sm"
                 required
               />
             </div>
             <button
               type="submit"
               disabled={addingSlot}
-              className="bg-[#1a3a6b] hover:bg-[#14306b] disabled:opacity-60 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors"
+              className="bg-[#1b2a63] hover:bg-[#14215a] disabled:opacity-60 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors"
             >
               {addingSlot ? 'Agregando...' : '+ Agregar'}
             </button>
@@ -390,7 +390,7 @@ export default function AdminPage() {
         </div>
 
         {/* Slots list */}
-        <h2 className="text-lg font-bold text-[#1a3a6b] mb-4">Turnos publicados</h2>
+        <h2 className="text-lg font-bold text-[#1b2a63] mb-4">Turnos publicados</h2>
 
         {loading ? (
           <div className="text-center py-10 text-gray-400">Cargando...</div>
@@ -455,7 +455,7 @@ export default function AdminPage() {
       </main>
 
       <footer className="text-center text-xs text-gray-400 py-4 mt-8 border-t border-gray-200">
-        EIPNL — Panel de Coordinación
+        Escuela Iberoamericana de PNL &amp; Coaching — Panel de Coordinación
       </footer>
     </div>
   );

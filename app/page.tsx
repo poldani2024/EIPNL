@@ -147,7 +147,7 @@ export default function HomePage() {
           <UserSetup onSave={handleUserSave} />
         </main>
         <footer className="text-center text-xs text-gray-400 py-4 border-t border-gray-200">
-          EIPNL — Sistema de Agenda de Turnos
+          Escuela Iberoamericana de PNL &amp; Coaching — Agenda de Turnos
         </footer>
       </div>
     );
@@ -161,6 +161,12 @@ export default function HomePage() {
       <Header />
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
+        {/* Título */}
+        <div className="mb-5">
+          <h1 className="text-2xl font-bold text-[#1b2a63]">Reservá tu reunión con la coordinadora</h1>
+          <p className="text-gray-500 text-sm mt-1">Elegí el día y horario que mejor te quede. Podés reservar un solo turno.</p>
+        </div>
+
         {/* User info bar */}
         <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 mb-5 shadow-sm border border-gray-100">
           <div>
@@ -192,7 +198,7 @@ export default function HomePage() {
         {myBooking && (() => {
           const slot = slots.find(s => s.id === myBooking.slotId);
           return slot ? (
-            <div className="bg-[#1a3a6b] text-white rounded-2xl p-5 mb-6 shadow-md">
+            <div className="bg-[#1b2a63] text-white rounded-2xl p-5 mb-6 shadow-md">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <div className="text-blue-200 text-xs uppercase tracking-wide mb-1 font-semibold">
@@ -216,7 +222,7 @@ export default function HomePage() {
 
         {/* Slots */}
         {!loading && slots.length > 0 && (
-          <h2 className="text-lg font-bold text-[#1a3a6b] mb-4">Turnos disponibles</h2>
+          <h2 className="text-lg font-bold text-[#1b2a63] mb-4">Turnos disponibles</h2>
         )}
 
         {loading ? (
@@ -246,10 +252,10 @@ export default function HomePage() {
                         key={slot.id}
                         className={`rounded-xl border-2 p-4 transition-all ${
                           isMySlot
-                            ? 'border-[#1a3a6b] bg-blue-50 shadow-sm'
+                            ? 'border-[#1b2a63] bg-blue-50 shadow-sm'
                             : isTaken
                             ? 'border-gray-200 bg-gray-50 opacity-60'
-                            : 'border-gray-200 bg-white hover:border-[#1a3a6b] hover:shadow-sm cursor-default'
+                            : 'border-gray-200 bg-white hover:border-[#1b2a63] hover:shadow-sm cursor-default'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-3">
@@ -259,7 +265,7 @@ export default function HomePage() {
                           </div>
                           <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
                             isMySlot
-                              ? 'bg-[#1a3a6b] text-white'
+                              ? 'bg-[#1b2a63] text-white'
                               : isTaken
                               ? 'bg-gray-200 text-gray-500'
                               : 'bg-green-100 text-green-700'
@@ -272,7 +278,7 @@ export default function HomePage() {
                           <button
                             onClick={() => handleBook(slot.id)}
                             disabled={isBookingThis}
-                            className="w-full bg-[#1a3a6b] hover:bg-[#14306b] disabled:opacity-60 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
+                            className="w-full bg-[#1b2a63] hover:bg-[#14215a] disabled:opacity-60 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
                           >
                             {isBookingThis ? 'Reservando...' : 'Reservar turno'}
                           </button>
@@ -294,7 +300,7 @@ export default function HomePage() {
       </main>
 
       <footer className="text-center text-xs text-gray-400 py-4 mt-8 border-t border-gray-200">
-        EIPNL — Sistema de Agenda de Turnos
+        Escuela Iberoamericana de PNL &amp; Coaching — Agenda de Turnos
       </footer>
     </div>
   );

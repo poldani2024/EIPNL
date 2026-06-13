@@ -31,7 +31,7 @@ export default function UserSetup({ onSave }: UserSetupProps) {
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-md p-8 w-full max-w-md border border-gray-100">
-        <h2 className="text-2xl font-bold text-[#1a3a6b] mb-1 text-center">Bienvenido/a</h2>
+        <h2 className="text-2xl font-bold text-[#1b2a63] mb-1 text-center">Bienvenido/a</h2>
         <p className="text-gray-500 text-sm text-center mb-6">
           Ingresá tus datos para reservar un turno con la coordinadora
         </p>
@@ -46,7 +46,7 @@ export default function UserSetup({ onSave }: UserSetupProps) {
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Ej: María González"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1a3a6b] focus:border-transparent outline-none transition"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b2a63] focus:border-transparent outline-none transition"
             />
           </div>
 
@@ -59,7 +59,7 @@ export default function UserSetup({ onSave }: UserSetupProps) {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="tu.nombre@ejemplo.com"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1a3a6b] focus:border-transparent outline-none transition"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b2a63] focus:border-transparent outline-none transition"
             />
           </div>
 
@@ -69,7 +69,7 @@ export default function UserSetup({ onSave }: UserSetupProps) {
 
           <button
             type="submit"
-            className="w-full bg-[#1a3a6b] hover:bg-[#14306b] text-white font-semibold py-2.5 rounded-lg transition-colors"
+            className="w-full bg-[#1b2a63] hover:bg-[#14215a] text-white font-semibold py-2.5 rounded-lg transition-colors"
           >
             Continuar
           </button>
