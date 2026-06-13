@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { cancelBooking, createBooking, getBookingsByEmail, getSlotsWithBookings } from '@/lib/clientStorage';
 import Header from '@/components/Header';
 import UserSetup from '@/components/UserSetup';
 
@@ -47,25 +48,21 @@ export default function HomePage() {
   const [bookingSlotId, setBookingSlotId] = useState<string | null>(null);
 
   useEffect(() => {
-    const email = localStorage.getItem('eipnl_email');
-    const name = localStorage.getItem('eipnl_name');
-    if (email && name) {
-      setUserEmail(email);
-      setUserName(name);
-    }
+    window.setTimeout(() => {
+      const email = localStorage.getItem('eipnl_email');
+      const name = localStorage.getItem('eipnl_name');
+      if (email && name) {
+        setUserEmail(email);
+        setUserName(name);
+      }
+    }, 0);
   }, []);
 
-  const fetchData = useCallback(async (email: string) => {
+  const fetchData = useCallback((email: string) => {
     setLoading(true);
     try {
-      const [slotsRes, bookingsRes] = await Promise.all([
-        fetch('/api/slots'),
-        fetch(`/api/bookings?email=${encodeURIComponent(email)}`),
-      ]);
-      const slotsData = await slotsRes.json();
-      const bookingsData = await bookingsRes.json();
-      setSlots(slotsData.slots || []);
-      setMyBooking(bookingsData.bookings?.[0] || null);
+      setSlots(getSlotsWithBookings());
+      setMyBooking(getBookingsByEmail(email)[0] || null);
     } catch {
       setMessage({ type: 'error', text: 'Error al cargar los turnos. Intentá de nuevo.' });
     } finally {
@@ -74,7 +71,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (userEmail) fetchData(userEmail);
+    if (userEmail) window.setTimeout(() => fetchData(userEmail), 0);
   }, [userEmail, fetchData]);
 
   function handleUserSave(email: string, name: string) {
@@ -98,20 +95,11 @@ export default function HomePage() {
     setBookingSlotId(slotId);
     setMessage(null);
     try {
-      const res = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slotId, studentEmail: userEmail, studentName: userName }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setMessage({ type: 'error', text: data.error || 'Error al reservar' });
-      } else {
-        setMessage({ type: 'success', text: '¡Turno reservado con éxito!' });
-        await fetchData(userEmail);
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Error de conexión. Intentá de nuevo.' });
+      createBooking(slotId, userEmail, userName);
+      setMessage({ type: 'success', text: '¡Turno reservado con éxito!' });
+      fetchData(userEmail);
+    } catch (error) {
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Error de conexión. Intentá de nuevo.' });
     } finally {
       setBookingSlotId(null);
     }
@@ -122,18 +110,9 @@ export default function HomePage() {
     if (!confirm('¿Estás seguro/a de que querés cancelar tu turno?')) return;
     setMessage(null);
     try {
-      const res = await fetch('/api/bookings', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId: myBooking.id, studentEmail: userEmail }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setMessage({ type: 'error', text: data.error || 'Error al cancelar' });
-      } else {
-        setMessage({ type: 'success', text: 'Turno cancelado correctamente.' });
-        await fetchData(userEmail);
-      }
+      cancelBooking(myBooking.id, userEmail);
+      setMessage({ type: 'success', text: 'Turno cancelado correctamente.' });
+      fetchData(userEmail);
     } catch {
       setMessage({ type: 'error', text: 'Error de conexión. Intentá de nuevo.' });
     }

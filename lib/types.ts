@@ -25,5 +25,5 @@ export interface BookingsData {
 }
 
 export interface SlotWithBooking extends Slot {
-  booking?: Booking;
+  booking: Booking | null;
 }
