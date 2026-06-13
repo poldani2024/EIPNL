@@ -16,7 +16,7 @@ export default function Header({ showAdminLink }: HeaderProps) {
         <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
           {/* Logo de la escuela. Reemplazar /logo.png por el archivo oficial si se dispone de él. */}
           <Image
-            src={`${basePath}/logo-icon.svg`}
+            src={`${basePath}/Escuela Iberoamericana.png`}
             alt="PNL & Coaching"
             width={48}
             height={48}
