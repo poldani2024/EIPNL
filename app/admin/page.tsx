@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import * as XLSX from 'xlsx';
+import { addSlot, cancelBooking, COORDINATOR_EMAIL, deleteSlot, getSlotsWithBookings } from '@/lib/clientStorage';
 import Header from '@/components/Header';
 
 interface SlotWithBooking {
@@ -53,13 +55,11 @@ export default function AdminPage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
-  const fetchSlots = useCallback(async () => {
+  const fetchSlots = useCallback(() => {
     if (!coordinatorEmail) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/slots');
-      const data = await res.json();
-      setSlots(data.slots || []);
+      setSlots(getSlotsWithBookings());
     } catch {
       setMessage({ type: 'error', text: 'Error al cargar los turnos.' });
     } finally {
@@ -68,12 +68,14 @@ export default function AdminPage() {
   }, [coordinatorEmail]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('eipnl_coordinator');
-    if (saved) setCoordinatorEmail(saved);
+    window.setTimeout(() => {
+      const saved = localStorage.getItem('eipnl_coordinator');
+      if (saved) setCoordinatorEmail(saved);
+    }, 0);
   }, []);
 
   useEffect(() => {
-    if (coordinatorEmail) fetchSlots();
+    if (coordinatorEmail) window.setTimeout(fetchSlots, 0);
   }, [coordinatorEmail, fetchSlots]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -81,17 +83,12 @@ export default function AdminPage() {
     setLoginLoading(true);
     setLoginError('');
     try {
-      // Validate by trying to fetch bookings as admin
-      const res = await fetch(
-        `/api/bookings?admin=1&coordinatorEmail=${encodeURIComponent(email.trim())}`
-      );
-      if (res.status === 403) {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (normalizedEmail !== COORDINATOR_EMAIL.toLowerCase()) {
         setLoginError('Email no autorizado. Solo la coordinadora puede ingresar aquí.');
-      } else if (res.ok) {
-        localStorage.setItem('eipnl_coordinator', email.trim().toLowerCase());
-        setCoordinatorEmail(email.trim().toLowerCase());
       } else {
-        setLoginError('Error al verificar el email. Intentá de nuevo.');
+        localStorage.setItem('eipnl_coordinator', normalizedEmail);
+        setCoordinatorEmail(normalizedEmail);
       }
     } catch {
       setLoginError('Error de conexión. Intentá de nuevo.');
@@ -119,21 +116,12 @@ export default function AdminPage() {
     setAddingSlot(true);
     setMessage(null);
     try {
-      const res = await fetch('/api/slots', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: newDate, startTime: newStart, endTime: newEnd, coordinatorEmail }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setMessage({ type: 'error', text: data.error || 'Error al agregar el turno.' });
-      } else {
-        setMessage({ type: 'success', text: 'Turno agregado correctamente.' });
-        setNewDate('');
-        setNewStart('');
-        setNewEnd('');
-        await fetchSlots();
-      }
+      addSlot(newDate, newStart, newEnd);
+      setMessage({ type: 'success', text: 'Turno agregado correctamente.' });
+      setNewDate('');
+      setNewStart('');
+      setNewEnd('');
+      fetchSlots();
     } catch {
       setMessage({ type: 'error', text: 'Error de conexión.' });
     } finally {
@@ -154,25 +142,12 @@ export default function AdminPage() {
       if (hasBooking) {
         const slot = slots.find(s => s.id === slotId);
         if (slot?.booking) {
-          await fetch('/api/bookings', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bookingId: slot.booking.id, coordinatorEmail }),
-          });
+          cancelBooking(slot.booking.id);
         }
       }
-      const res = await fetch('/api/slots', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slotId, coordinatorEmail }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setMessage({ type: 'error', text: data.error || 'Error al eliminar.' });
-      } else {
-        setMessage({ type: 'success', text: 'Turno eliminado.' });
-        await fetchSlots();
-      }
+      deleteSlot(slotId);
+      setMessage({ type: 'success', text: 'Turno eliminado.' });
+      fetchSlots();
     } catch {
       setMessage({ type: 'error', text: 'Error de conexión.' });
     } finally {
@@ -185,18 +160,9 @@ export default function AdminPage() {
     setCancellingId(bookingId);
     setMessage(null);
     try {
-      const res = await fetch('/api/bookings', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId, coordinatorEmail }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setMessage({ type: 'error', text: data.error || 'Error al cancelar.' });
-      } else {
-        setMessage({ type: 'success', text: 'Reserva cancelada.' });
-        await fetchSlots();
-      }
+      cancelBooking(bookingId);
+      setMessage({ type: 'success', text: 'Reserva cancelada.' });
+      fetchSlots();
     } catch {
       setMessage({ type: 'error', text: 'Error de conexión.' });
     } finally {
@@ -208,12 +174,25 @@ export default function AdminPage() {
     if (!coordinatorEmail) return;
     setExporting(true);
     try {
-      const res = await fetch(`/api/export?coordinatorEmail=${encodeURIComponent(coordinatorEmail)}`);
-      if (!res.ok) {
-        setMessage({ type: 'error', text: 'Error al exportar.' });
-        return;
-      }
-      const blob = await res.blob();
+      const rows = slots
+        .filter(slot => slot.booking)
+        .map(slot => ({
+          'Nombre del Alumno': slot.booking!.studentName,
+          'Email': slot.booking!.studentEmail,
+          'Fecha': slot.date.split('-').reverse().join('/'),
+          'Horario': `${slot.startTime} - ${slot.endTime}`,
+          'Fecha de Reserva': new Date(slot.booking!.bookedAt).toLocaleString('es-AR'),
+        }));
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      worksheet['!cols'] = [
+        { wch: 30 }, { wch: 35 }, { wch: 14 }, { wch: 18 }, { wch: 22 }
+      ];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Turnos');
+      const workbookArray = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+      const blob = new Blob([workbookArray], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       const today = new Date().toLocaleDateString('es-AR').replace(/\//g, '-');
