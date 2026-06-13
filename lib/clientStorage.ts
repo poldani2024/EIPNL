@@ -4,7 +4,7 @@ const SLOTS_KEY = 'eipnl_slots';
 const BOOKINGS_KEY = 'eipnl_bookings';
 
 export const COORDINATOR_EMAIL =
-  process.env.NEXT_PUBLIC_COORDINATOR_EMAIL || 'coordinadora@eipnl.edu.ar';
+  process.env.NEXT_PUBLIC_COORDINATOR_EMAIL || 'murguiondoflorencia@gmail.com';
 
 function readArray<T>(key: string): T[] {
   if (typeof window === 'undefined') return [];
