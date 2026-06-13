@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Allows reading/writing to the data directory at runtime
-  serverExternalPackages: [],
+  output: 'export',
+  basePath: '/EIPNL',
+  trailingSlash: true,
   images: {
     unoptimized: true,
   },
