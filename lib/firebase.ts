@@ -17,4 +17,8 @@ const firebaseConfig = {
 // Evita reinicializar la app en hot-reload / múltiples imports.
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-export const db = getFirestore(app);
+// La base de datos Firestore tiene un ID propio (no el '(default)').
+// Se puede sobreescribir con NEXT_PUBLIC_FIREBASE_DATABASE_ID en el build.
+const databaseId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || 'eipnl-turnos';
+
+export const db = getFirestore(app, databaseId);
