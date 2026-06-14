@@ -51,11 +51,15 @@ export default function HomePage() {
     }, 0);
   }, []);
 
-  const fetchData = useCallback((email: string) => {
+  const fetchData = useCallback(async (email: string) => {
     setLoading(true);
     try {
-      setSlots(getSlotsWithBookings());
-      setMyBooking(getBookingsByEmail(email)[0] || null);
+      const [slotsData, bookings] = await Promise.all([
+        getSlotsWithBookings(),
+        getBookingsByEmail(email),
+      ]);
+      setSlots(slotsData);
+      setMyBooking(bookings[0] || null);
     } catch {
       setMessage({ type: 'error', text: 'Error al cargar los turnos. Intentá de nuevo.' });
     } finally {
@@ -88,9 +92,9 @@ export default function HomePage() {
     setBookingSlotId(slotId);
     setMessage(null);
     try {
-      createBooking(slotId, userEmail, userName);
+      await createBooking(slotId, userEmail, userName);
       setMessage({ type: 'success', text: '¡Turno reservado con éxito!' });
-      fetchData(userEmail);
+      await fetchData(userEmail);
     } catch (error) {
       setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Error de conexión. Intentá de nuevo.' });
     } finally {
@@ -103,9 +107,9 @@ export default function HomePage() {
     if (!confirm('¿Estás seguro/a de que querés cancelar tu turno?')) return;
     setMessage(null);
     try {
-      cancelBooking(myBooking.id, userEmail);
+      await cancelBooking(myBooking.id, userEmail);
       setMessage({ type: 'success', text: 'Turno cancelado correctamente.' });
-      fetchData(userEmail);
+      await fetchData(userEmail);
     } catch {
       setMessage({ type: 'error', text: 'Error de conexión. Intentá de nuevo.' });
     }

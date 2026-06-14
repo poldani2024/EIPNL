@@ -1,24 +1,26 @@
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  runTransaction,
+  setDoc,
+  where,
+} from 'firebase/firestore';
+import { db } from './firebase';
 import { Booking, Slot, SlotWithBooking } from './types';
 
-const SLOTS_KEY = 'eipnl_slots';
-const BOOKINGS_KEY = 'eipnl_bookings';
+// Los datos ahora viven en Firestore (base compartida en la nube), de modo
+// que la coordinadora y los alumnos ven exactamente la misma información
+// desde cualquier dispositivo, y nada se pierde al limpiar el navegador.
 
 export const COORDINATOR_EMAIL =
   process.env.NEXT_PUBLIC_COORDINATOR_EMAIL || 'murguiondoflorencia@gmail.com';
 
-function readArray<T>(key: string): T[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeArray<T>(key: string, value: T[]) {
-  window.localStorage.setItem(key, JSON.stringify(value));
-}
+const slotsCol = collection(db, 'slots');
+const bookingsCol = collection(db, 'bookings');
 
 function sortSlots(slots: SlotWithBooking[]) {
   return slots.sort((a, b) => {
@@ -27,9 +29,14 @@ function sortSlots(slots: SlotWithBooking[]) {
   });
 }
 
-export function getSlotsWithBookings(): SlotWithBooking[] {
-  const slots = readArray<Slot>(SLOTS_KEY);
-  const bookings = readArray<Booking>(BOOKINGS_KEY);
+export async function getSlotsWithBookings(): Promise<SlotWithBooking[]> {
+  const [slotsSnap, bookingsSnap] = await Promise.all([
+    getDocs(slotsCol),
+    getDocs(bookingsCol),
+  ]);
+
+  const slots = slotsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as Slot);
+  const bookings = bookingsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as Booking);
 
   return sortSlots(
     slots.map(slot => ({
@@ -39,57 +46,85 @@ export function getSlotsWithBookings(): SlotWithBooking[] {
   );
 }
 
-export function getBookingsByEmail(email: string): Booking[] {
-  return readArray<Booking>(BOOKINGS_KEY).filter(
-    booking => booking.studentEmail.toLowerCase() === email.toLowerCase()
-  );
+export async function getBookingsByEmail(email: string): Promise<Booking[]> {
+  const q = query(bookingsCol, where('studentEmail', '==', email.toLowerCase().trim()));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }) as Booking);
 }
 
-export function addSlot(date: string, startTime: string, endTime: string): Slot {
-  const slots = readArray<Slot>(SLOTS_KEY);
-  const slot: Slot = {
-    id: crypto.randomUUID(),
-    date,
-    startTime,
-    endTime,
-    createdAt: new Date().toISOString(),
-  };
-  writeArray(SLOTS_KEY, [...slots, slot]);
+export async function addSlot(date: string, startTime: string, endTime: string): Promise<Slot> {
+  const id = crypto.randomUUID();
+  const slot: Slot = { id, date, startTime, endTime, createdAt: new Date().toISOString() };
+  await setDoc(doc(slotsCol, id), {
+    date: slot.date,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    createdAt: slot.createdAt,
+  });
   return slot;
 }
 
-export function deleteSlot(slotId: string) {
-  writeArray(SLOTS_KEY, readArray<Slot>(SLOTS_KEY).filter(slot => slot.id !== slotId));
-  writeArray(BOOKINGS_KEY, readArray<Booking>(BOOKINGS_KEY).filter(booking => booking.slotId !== slotId));
+export async function deleteSlot(slotId: string): Promise<void> {
+  // Elimina el turno y cualquier reserva asociada.
+  const relatedBookings = await getDocs(query(bookingsCol, where('slotId', '==', slotId)));
+  await Promise.all([
+    deleteDoc(doc(slotsCol, slotId)),
+    ...relatedBookings.docs.map(d => deleteDoc(d.ref)),
+  ]);
 }
 
-export function createBooking(slotId: string, studentEmail: string, studentName: string): Booking {
-  const bookings = readArray<Booking>(BOOKINGS_KEY);
-  if (bookings.some(booking => booking.slotId === slotId)) {
-    throw new Error('Este turno ya fue reservado por otro alumno. Por favor seleccioná otro.');
-  }
-  if (bookings.some(booking => booking.studentEmail.toLowerCase() === studentEmail.toLowerCase())) {
+export async function createBooking(
+  slotId: string,
+  studentEmail: string,
+  studentName: string
+): Promise<Booking> {
+  const email = studentEmail.toLowerCase().trim();
+  const name = studentName.trim();
+
+  // Regla: un solo turno por alumno (chequeo previo).
+  const existing = await getDocs(query(bookingsCol, where('studentEmail', '==', email)));
+  if (!existing.empty) {
     throw new Error('Ya tenés un turno reservado. Cancelalo primero para elegir otro.');
   }
 
+  // La reserva usa el slotId como id del documento: así la transacción
+  // garantiza de forma atómica que un mismo turno no se reserve dos veces.
+  const bookingRef = doc(bookingsCol, slotId);
   const booking: Booking = {
-    id: crypto.randomUUID(),
+    id: slotId,
     slotId,
-    studentEmail: studentEmail.toLowerCase().trim(),
-    studentName: studentName.trim(),
+    studentEmail: email,
+    studentName: name,
     bookedAt: new Date().toISOString(),
   };
-  writeArray(BOOKINGS_KEY, [...bookings, booking]);
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(bookingRef);
+    if (snap.exists()) {
+      throw new Error('Este turno ya fue reservado por otro alumno. Por favor seleccioná otro.');
+    }
+    tx.set(bookingRef, {
+      slotId: booking.slotId,
+      studentEmail: booking.studentEmail,
+      studentName: booking.studentName,
+      bookedAt: booking.bookedAt,
+    });
+  });
+
   return booking;
 }
 
-export function cancelBooking(bookingId: string, studentEmail?: string) {
-  const normalizedEmail = studentEmail?.toLowerCase();
-  writeArray(
-    BOOKINGS_KEY,
-    readArray<Booking>(BOOKINGS_KEY).filter(booking => {
-      if (booking.id !== bookingId) return true;
-      return normalizedEmail ? booking.studentEmail.toLowerCase() !== normalizedEmail : false;
-    })
-  );
+export async function cancelBooking(bookingId: string, studentEmail?: string): Promise<void> {
+  const ref = doc(bookingsCol, bookingId);
+
+  // Si se pasa el email (cancelación del propio alumno), validamos que sea
+  // el dueño de la reserva antes de borrarla.
+  if (studentEmail) {
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const owner = (snap.data().studentEmail as string)?.toLowerCase();
+    if (owner !== studentEmail.toLowerCase()) return;
+  }
+
+  await deleteDoc(ref);
 }

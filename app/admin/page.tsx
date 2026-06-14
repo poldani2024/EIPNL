@@ -54,11 +54,11 @@ export default function AdminPage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
-  const fetchSlots = useCallback(() => {
+  const fetchSlots = useCallback(async () => {
     if (!coordinatorEmail) return;
     setLoading(true);
     try {
-      setSlots(getSlotsWithBookings());
+      setSlots(await getSlotsWithBookings());
     } catch {
       setMessage({ type: 'error', text: 'Error al cargar los turnos.' });
     } finally {
@@ -102,7 +102,7 @@ export default function AdminPage() {
     setSlots([]);
   }
 
-  function handleAddSlotFromCalendar(date: string, startTime: string) {
+  async function handleAddSlotFromCalendar(date: string, startTime: string) {
     const endTime = addMinutes(startTime, selectedDuration);
     const slotKey = `${date}-${startTime}`;
     const startMinutes = timeToMinutes(startTime);
@@ -128,9 +128,9 @@ export default function AdminPage() {
     setAddingSlotKey(slotKey);
     setMessage(null);
     try {
-      addSlot(date, startTime, endTime);
+      await addSlot(date, startTime, endTime);
       setMessage({ type: 'success', text: `Turno de ${selectedDuration} minutos agregado correctamente.` });
-      fetchSlots();
+      await fetchSlots();
     } catch {
       setMessage({ type: 'error', text: 'Error de conexión.' });
     } finally {
@@ -151,12 +151,12 @@ export default function AdminPage() {
       if (hasBooking) {
         const slot = slots.find(s => s.id === slotId);
         if (slot?.booking) {
-          cancelBooking(slot.booking.id);
+          await cancelBooking(slot.booking.id);
         }
       }
-      deleteSlot(slotId);
+      await deleteSlot(slotId);
       setMessage({ type: 'success', text: 'Turno eliminado.' });
-      fetchSlots();
+      await fetchSlots();
     } catch {
       setMessage({ type: 'error', text: 'Error de conexión.' });
     } finally {
@@ -169,9 +169,9 @@ export default function AdminPage() {
     setCancellingId(bookingId);
     setMessage(null);
     try {
-      cancelBooking(bookingId);
+      await cancelBooking(bookingId);
       setMessage({ type: 'success', text: 'Reserva cancelada.' });
-      fetchSlots();
+      await fetchSlots();
     } catch {
       setMessage({ type: 'error', text: 'Error de conexión.' });
     } finally {
