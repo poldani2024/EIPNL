@@ -22,6 +22,14 @@ export function timeToMinutes(time: string) {
   return hours * 60 + minutes;
 }
 
+// Un turno "ya pasó" cuando su hora de fin (fecha + endTime, hora local)
+// es anterior al momento actual.
+export function isSlotPast(date: string, endTime: string) {
+  const slotEnd = new Date(`${date}T${endTime}:00`);
+  if (Number.isNaN(slotEnd.getTime())) return false;
+  return slotEnd.getTime() < Date.now();
+}
+
 export function addMinutes(time: string, minutesToAdd: number) {
   return toTimeKey(timeToMinutes(time) + minutesToAdd);
 }

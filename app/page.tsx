@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { cancelBooking, createBooking, getBookingsByEmail, getSlotsWithBookings } from '@/lib/clientStorage';
-import { addDays, formatWeekRange, getCurrentMonday, getTimeRows, getWeekDays, timeToMinutes } from '@/lib/calendar';
+import { addDays, formatWeekRange, getCurrentMonday, getTimeRows, getWeekDays, isSlotPast, timeToMinutes } from '@/lib/calendar';
 import Header from '@/components/Header';
 import UserSetup from '@/components/UserSetup';
 
@@ -40,15 +40,16 @@ export default function HomePage() {
   const [bookingSlotId, setBookingSlotId] = useState<string | null>(null);
   const [weekStart, setWeekStart] = useState(() => getCurrentMonday());
 
+  // No se usa persistencia local: limpiamos cualquier dato viejo del navegador
+  // (versiones anteriores guardaban identidad y turnos en localStorage).
   useEffect(() => {
-    window.setTimeout(() => {
-      const email = localStorage.getItem('eipnl_email');
-      const name = localStorage.getItem('eipnl_name');
-      if (email && name) {
-        setUserEmail(email);
-        setUserName(name);
-      }
-    }, 0);
+    try {
+      ['eipnl_email', 'eipnl_name', 'eipnl_slots', 'eipnl_bookings'].forEach(
+        key => localStorage.removeItem(key)
+      );
+    } catch {
+      /* noop */
+    }
   }, []);
 
   const fetchData = useCallback(async (email: string) => {
@@ -59,7 +60,15 @@ export default function HomePage() {
         getBookingsByEmail(email),
       ]);
       setSlots(slotsData);
-      setMyBooking(bookings[0] || null);
+
+      // Solo cuenta como "mi turno" el que todavía no pasó. Si el turno
+      // anterior ya venció, el alumno queda habilitado para reservar otro.
+      const slotsById = new Map(slotsData.map(s => [s.id, s]));
+      const activeBooking = bookings.find(b => {
+        const slot = slotsById.get(b.slotId);
+        return slot ? !isSlotPast(slot.date, slot.endTime) : false;
+      });
+      setMyBooking(activeBooking || null);
     } catch {
       setMessage({ type: 'error', text: 'Error al cargar los turnos. Intentá de nuevo.' });
     } finally {
@@ -72,15 +81,11 @@ export default function HomePage() {
   }, [userEmail, fetchData]);
 
   function handleUserSave(email: string, name: string) {
-    localStorage.setItem('eipnl_email', email);
-    localStorage.setItem('eipnl_name', name);
     setUserEmail(email);
     setUserName(name);
   }
 
   function handleLogout() {
-    localStorage.removeItem('eipnl_email');
-    localStorage.removeItem('eipnl_name');
     setUserEmail(null);
     setUserName(null);
     setSlots([]);

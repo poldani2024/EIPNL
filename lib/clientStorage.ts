@@ -10,6 +10,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { isSlotPast } from './calendar';
 import { Booking, Slot, SlotWithBooking } from './types';
 
 // Los datos ahora viven en Firestore (base compartida en la nube), de modo
@@ -81,10 +82,19 @@ export async function createBooking(
   const email = studentEmail.toLowerCase().trim();
   const name = studentName.trim();
 
-  // Regla: un solo turno por alumno (chequeo previo).
+  // Regla: un alumno solo puede tener un turno VIGENTE a la vez. Puede sacar
+  // uno nuevo si su turno anterior ya pasó (o si ese turno fue eliminado).
   const existing = await getDocs(query(bookingsCol, where('studentEmail', '==', email)));
   if (!existing.empty) {
-    throw new Error('Ya tenés un turno reservado. Cancelalo primero para elegir otro.');
+    const slotsSnap = await getDocs(slotsCol);
+    const slotsById = new Map(slotsSnap.docs.map(d => [d.id, d.data() as Omit<Slot, 'id'>]));
+    const hasActiveBooking = existing.docs.some(d => {
+      const slot = slotsById.get((d.data() as Booking).slotId);
+      return slot ? !isSlotPast(slot.date, slot.endTime) : false;
+    });
+    if (hasActiveBooking) {
+      throw new Error('Ya tenés un turno reservado. Cancelalo primero o esperá a que pase para elegir otro.');
+    }
   }
 
   // La reserva usa el slotId como id del documento: así la transacción

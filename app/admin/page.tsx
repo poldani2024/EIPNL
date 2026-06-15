@@ -66,11 +66,15 @@ export default function AdminPage() {
     }
   }, [coordinatorEmail]);
 
+  // No se usa persistencia local: limpiamos cualquier dato viejo del navegador.
   useEffect(() => {
-    window.setTimeout(() => {
-      const saved = localStorage.getItem('eipnl_coordinator');
-      if (saved) setCoordinatorEmail(saved);
-    }, 0);
+    try {
+      ['eipnl_coordinator', 'eipnl_slots', 'eipnl_bookings'].forEach(
+        key => localStorage.removeItem(key)
+      );
+    } catch {
+      /* noop */
+    }
   }, []);
 
   useEffect(() => {
@@ -86,7 +90,6 @@ export default function AdminPage() {
       if (normalizedEmail !== COORDINATOR_EMAIL.toLowerCase()) {
         setLoginError('Email no autorizado. Solo la coordinadora puede ingresar aquí.');
       } else {
-        localStorage.setItem('eipnl_coordinator', normalizedEmail);
         setCoordinatorEmail(normalizedEmail);
       }
     } catch {
@@ -97,7 +100,6 @@ export default function AdminPage() {
   }
 
   function handleLogout() {
-    localStorage.removeItem('eipnl_coordinator');
     setCoordinatorEmail(null);
     setSlots([]);
   }
