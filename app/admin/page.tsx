@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { addSlot, cancelBooking, COORDINATOR_EMAIL, deleteSlot, getSlotsWithBookings } from '@/lib/clientStorage';
-import { addDays, addMinutes, formatWeekRange, getCurrentMonday, getTimeRows, getWeekDays, SLOT_DURATIONS, timeToMinutes } from '@/lib/calendar';
+import { addDays, addMinutes, formatWeekRange, getCurrentMonday, getTimeRows, getWeekDays, isSlotPast, SLOT_DURATIONS, timeToMinutes } from '@/lib/calendar';
 import Header from '@/components/Header';
 
 interface SlotWithBooking {
@@ -269,6 +269,8 @@ export default function AdminPage() {
   const sortedDates = Object.keys(grouped).sort();
   const bookedCount = slots.filter(s => s.booking).length;
   const totalCount = slots.length;
+  // Turnos disponibles = libres y que todavía no pasaron.
+  const availableCount = slots.filter(s => !s.booking && !isSlotPast(s.date, s.endTime)).length;
   const weekDays = getWeekDays(weekStart);
   const timeRows = getTimeRows();
 
@@ -317,7 +319,7 @@ export default function AdminPage() {
             <div className="text-sm text-gray-500 mt-1">Turnos reservados</div>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
-            <div className="text-3xl font-bold text-orange-500">{totalCount - bookedCount}</div>
+            <div className="text-3xl font-bold text-orange-500">{availableCount}</div>
             <div className="text-sm text-gray-500 mt-1">Turnos disponibles</div>
           </div>
         </div>

@@ -82,6 +82,16 @@ export async function createBooking(
   const email = studentEmail.toLowerCase().trim();
   const name = studentName.trim();
 
+  // No se puede reservar un turno que ya pasó (o que ya no existe).
+  const targetSlotSnap = await getDoc(doc(slotsCol, slotId));
+  if (!targetSlotSnap.exists()) {
+    throw new Error('Este turno ya no está disponible. Actualizá la página.');
+  }
+  const targetSlot = targetSlotSnap.data() as Omit<Slot, 'id'>;
+  if (isSlotPast(targetSlot.date, targetSlot.endTime)) {
+    throw new Error('Este turno ya pasó. Elegí uno disponible.');
+  }
+
   // Regla: un alumno solo puede tener un turno VIGENTE a la vez. Puede sacar
   // uno nuevo si su turno anterior ya pasó (o si ese turno fue eliminado).
   const existing = await getDocs(query(bookingsCol, where('studentEmail', '==', email)));

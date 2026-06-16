@@ -261,6 +261,7 @@ export default function HomePage() {
                     const isMySlot = slot ? myBooking?.slotId === slot.id : false;
                     const isBookingThis = slot ? bookingSlotId === slot.id : false;
                     const hasOtherBooking = !!myBooking && !isMySlot;
+                    const isPast = slot ? isSlotPast(slot.date, slot.endTime) : false;
 
                     return (
                       <div key={`${day.dateKey}-${time}`} className="min-h-[64px] border-l border-gray-100 p-1.5">
@@ -268,7 +269,7 @@ export default function HomePage() {
                           <div className={`h-full rounded-xl border p-2 text-xs ${
                             isMySlot
                               ? 'border-[#1b2a63] bg-blue-50'
-                              : isTaken
+                              : isTaken || isPast
                               ? 'border-gray-200 bg-gray-50 opacity-70'
                               : 'border-green-200 bg-green-50'
                           }`}>
@@ -277,14 +278,14 @@ export default function HomePage() {
                               <span className={`rounded-full px-1.5 py-0.5 font-semibold ${
                                 isMySlot
                                   ? 'bg-[#1b2a63] text-white'
-                                  : isTaken
+                                  : isTaken || isPast
                                   ? 'bg-gray-200 text-gray-500'
                                   : 'bg-green-100 text-green-700'
                               }`}>
-                                {isMySlot ? 'Mi turno' : isTaken ? 'Ocupado' : 'Libre'}
+                                {isMySlot ? 'Mi turno' : isTaken ? 'Ocupado' : isPast ? 'Vencido' : 'Libre'}
                               </span>
                             </div>
-                            {!isTaken && !hasOtherBooking && (
+                            {!isTaken && !isPast && !hasOtherBooking && (
                               <button
                                 onClick={() => handleBook(slot.id)}
                                 disabled={isBookingThis}
@@ -293,7 +294,7 @@ export default function HomePage() {
                                 {isBookingThis ? 'Reservando...' : 'Reservar'}
                               </button>
                             )}
-                            {!isTaken && hasOtherBooking && (
+                            {!isTaken && !isPast && hasOtherBooking && (
                               <p className="mt-2 text-center text-[11px] text-gray-400">Ya tenés un turno</p>
                             )}
                           </div>
