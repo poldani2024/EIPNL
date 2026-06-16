@@ -267,10 +267,11 @@ export default function AdminPage() {
 
   const grouped = groupSlotsByDate(slots);
   const sortedDates = Object.keys(grouped).sort();
-  const bookedCount = slots.filter(s => s.booking).length;
-  const totalCount = slots.length;
-  // Turnos disponibles = libres y que todavía no pasaron.
-  const availableCount = slots.filter(s => !s.booking && !isSlotPast(s.date, s.endTime)).length;
+  // Los contadores reflejan solo turnos vigentes (los vencidos no se cuentan).
+  const activeSlots = slots.filter(s => !isSlotPast(s.date, s.endTime));
+  const totalCount = activeSlots.length;
+  const bookedCount = activeSlots.filter(s => s.booking).length;
+  const availableCount = activeSlots.filter(s => !s.booking).length;
   const weekDays = getWeekDays(weekStart);
   const timeRows = getTimeRows();
 
