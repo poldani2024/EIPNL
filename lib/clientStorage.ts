@@ -22,6 +22,20 @@ export const COORDINATOR_EMAIL =
 
 const slotsCol = collection(db, 'slots');
 const bookingsCol = collection(db, 'bookings');
+const configRef = doc(db, 'config', 'general');
+
+export interface AppConfig {
+  zoomLink: string;
+}
+
+export async function getConfig(): Promise<AppConfig> {
+  const snap = await getDoc(configRef);
+  return { zoomLink: (snap.exists() ? (snap.data().zoomLink as string) : '') || '' };
+}
+
+export async function setZoomLink(zoomLink: string): Promise<void> {
+  await setDoc(configRef, { zoomLink: zoomLink.trim() }, { merge: true });
+}
 
 function sortSlots(slots: SlotWithBooking[]) {
   return slots.sort((a, b) => {

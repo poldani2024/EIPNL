@@ -81,3 +81,30 @@ export function downloadICS(event: CalendarEvent, filename = 'turno-eipnl.ics') 
   a.click();
   URL.revokeObjectURL(url);
 }
+
+// Arma el evento de un turno de la escuela, incluyendo (si existe) el link de
+// Zoom en la ubicación y la descripción para que el calendario muestre el
+// botón de "Unirse".
+export function buildTurnoEvent(opts: {
+  date: string;
+  startTime: string;
+  endTime: string;
+  studentName?: string;
+  zoomLink?: string;
+}): CalendarEvent {
+  const { date, startTime, endTime, studentName, zoomLink } = opts;
+  const description: string[] = [];
+  if (studentName) description.push(`Turno reservado por ${studentName}.`);
+  description.push('Escuela Iberoamericana de PNL & Coaching.');
+  if (zoomLink) description.push(`Unirse a la reunión: ${zoomLink}`);
+
+  return {
+    title: 'Reunión con la coordinadora — EIPNL',
+    description: description.join(' '),
+    location: zoomLink || 'Escuela Iberoamericana de PNL & Coaching',
+    date,
+    startTime,
+    endTime,
+  };
+}
+

@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
-import { addSlot, cancelBooking, COORDINATOR_EMAIL, deleteSlot, getSlotsWithBookings } from '@/lib/clientStorage';
+import { addSlot, cancelBooking, COORDINATOR_EMAIL, deleteSlot, getConfig, getSlotsWithBookings, setZoomLink as persistZoomLink } from '@/lib/clientStorage';
 import { addDays, addMinutes, formatWeekRange, getCurrentMonday, getTimeRows, getWeekDays, isSlotPast, SLOT_DURATIONS, timeToMinutes } from '@/lib/calendar';
+import { buildGoogleCalendarUrl, buildTurnoEvent, downloadICS } from '@/lib/ics';
 import Header from '@/components/Header';
 
 interface SlotWithBooking {
@@ -54,17 +55,39 @@ export default function AdminPage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
+  const [zoomLink, setZoomLink] = useState('');
+  const [zoomInput, setZoomInput] = useState('');
+  const [savingZoom, setSavingZoom] = useState(false);
+
   const fetchSlots = useCallback(async () => {
     if (!coordinatorEmail) return;
     setLoading(true);
     try {
-      setSlots(await getSlotsWithBookings());
+      const [slotsData, config] = await Promise.all([getSlotsWithBookings(), getConfig()]);
+      setSlots(slotsData);
+      setZoomLink(config.zoomLink);
+      setZoomInput(config.zoomLink);
     } catch {
       setMessage({ type: 'error', text: 'Error al cargar los turnos.' });
     } finally {
       setLoading(false);
     }
   }, [coordinatorEmail]);
+
+  async function handleSaveZoom(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingZoom(true);
+    setMessage(null);
+    try {
+      await persistZoomLink(zoomInput);
+      setZoomLink(zoomInput.trim());
+      setMessage({ type: 'success', text: 'Link de Zoom guardado. Se incluirá en los turnos.' });
+    } catch {
+      setMessage({ type: 'error', text: 'No se pudo guardar el link de Zoom.' });
+    } finally {
+      setSavingZoom(false);
+    }
+  }
 
   // No se usa persistencia local: limpiamos cualquier dato viejo del navegador.
   useEffect(() => {
@@ -339,6 +362,38 @@ export default function AdminPage() {
           </button>
         </div>
 
+        {/* Zoom link config */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+          <h2 className="text-lg font-bold text-[#1b2a63]">Link de videollamada (Zoom)</h2>
+          <p className="text-sm text-gray-500 mt-1 mb-3">
+            Pegá el link de tu sala de Zoom. Se incluirá automáticamente en el turno y en el evento de calendario de cada alumno.
+          </p>
+          <form onSubmit={handleSaveZoom} className="flex flex-wrap items-center gap-2">
+            <input
+              type="url"
+              value={zoomInput}
+              onChange={e => setZoomInput(e.target.value)}
+              placeholder="https://us02web.zoom.us/j/..."
+              className="flex-1 min-w-[240px] px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b2a63] focus:border-transparent outline-none transition"
+            />
+            <button
+              type="submit"
+              disabled={savingZoom || zoomInput.trim() === zoomLink.trim()}
+              className="bg-[#1b2a63] hover:bg-[#14215a] disabled:opacity-50 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
+            >
+              {savingZoom ? 'Guardando...' : 'Guardar'}
+            </button>
+          </form>
+          {zoomLink && (
+            <p className="text-xs text-gray-400 mt-2 break-all">
+              Link actual:{' '}
+              <a href={zoomLink} target="_blank" rel="noopener noreferrer" className="text-[#2f9e9e] hover:underline">
+                {zoomLink}
+              </a>
+            </p>
+          )}
+        </div>
+
         {/* Calendar add slot */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
           <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
@@ -479,15 +534,43 @@ export default function AdminPage() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {slot.booking && (
-                          <button
-                            onClick={() => handleCancelBooking(slot.booking!.id)}
-                            disabled={cancellingId === slot.booking.id}
-                            className="text-xs text-orange-600 hover:text-orange-700 border border-orange-200 hover:bg-orange-50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-                          >
-                            {cancellingId === slot.booking.id ? 'Cancelando...' : 'Cancelar reserva'}
-                          </button>
+                          <>
+                            <a
+                              href={buildGoogleCalendarUrl(buildTurnoEvent({
+                                date: slot.date,
+                                startTime: slot.startTime,
+                                endTime: slot.endTime,
+                                studentName: slot.booking.studentName,
+                                zoomLink,
+                              }))}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-[#1b2a63] hover:bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors"
+                            >
+                              📅 Google
+                            </a>
+                            <button
+                              onClick={() => downloadICS(buildTurnoEvent({
+                                date: slot.date,
+                                startTime: slot.startTime,
+                                endTime: slot.endTime,
+                                studentName: slot.booking!.studentName,
+                                zoomLink,
+                              }))}
+                              className="text-xs text-[#1b2a63] hover:bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors"
+                            >
+                              .ics
+                            </button>
+                            <button
+                              onClick={() => handleCancelBooking(slot.booking!.id)}
+                              disabled={cancellingId === slot.booking.id}
+                              className="text-xs text-orange-600 hover:text-orange-700 border border-orange-200 hover:bg-orange-50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {cancellingId === slot.booking.id ? 'Cancelando...' : 'Cancelar reserva'}
+                            </button>
+                          </>
                         )}
                         <button
                           onClick={() => handleDeleteSlot(slot.id, !!slot.booking)}

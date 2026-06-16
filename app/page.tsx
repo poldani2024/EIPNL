@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { cancelBooking, createBooking, getBookingsByEmail, getSlotsWithBookings } from '@/lib/clientStorage';
+import { cancelBooking, createBooking, getBookingsByEmail, getConfig, getSlotsWithBookings } from '@/lib/clientStorage';
 import { addDays, formatWeekRange, getCurrentMonday, getTimeRows, getWeekDays, isSlotPast, timeToMinutes } from '@/lib/calendar';
-import { buildGoogleCalendarUrl, downloadICS } from '@/lib/ics';
+import { buildGoogleCalendarUrl, buildTurnoEvent, downloadICS } from '@/lib/ics';
 import Header from '@/components/Header';
 import UserSetup from '@/components/UserSetup';
 
@@ -40,6 +40,7 @@ export default function HomePage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [bookingSlotId, setBookingSlotId] = useState<string | null>(null);
   const [weekStart, setWeekStart] = useState(() => getCurrentMonday());
+  const [zoomLink, setZoomLink] = useState('');
 
   // No se usa persistencia local: limpiamos cualquier dato viejo del navegador
   // (versiones anteriores guardaban identidad y turnos en localStorage).
@@ -56,11 +57,13 @@ export default function HomePage() {
   const fetchData = useCallback(async (email: string) => {
     setLoading(true);
     try {
-      const [slotsData, bookings] = await Promise.all([
+      const [slotsData, bookings, config] = await Promise.all([
         getSlotsWithBookings(),
         getBookingsByEmail(email),
+        getConfig(),
       ]);
       setSlots(slotsData);
+      setZoomLink(config.zoomLink);
 
       // Solo cuenta como "mi turno" el que todavía no pasó. Si el turno
       // anterior ya venció, el alumno queda habilitado para reservar otro.
@@ -180,14 +183,13 @@ export default function HomePage() {
         {myBooking && (() => {
           const slot = slots.find(s => s.id === myBooking.slotId);
           if (!slot) return null;
-          const calendarEvent = {
-            title: 'Reunión con la coordinadora — EIPNL',
-            description: `Turno reservado por ${userName ?? ''}. Escuela Iberoamericana de PNL & Coaching.`,
-            location: 'Escuela Iberoamericana de PNL & Coaching',
+          const calendarEvent = buildTurnoEvent({
             date: slot.date,
             startTime: slot.startTime,
             endTime: slot.endTime,
-          };
+            studentName: userName ?? undefined,
+            zoomLink,
+          });
           return (
             <div className="bg-[#1b2a63] text-white rounded-2xl p-5 mb-6 shadow-md">
               <div className="flex items-start justify-between flex-wrap gap-3">
@@ -207,6 +209,21 @@ export default function HomePage() {
                   Cancelar turno
                 </button>
               </div>
+              {zoomLink && (
+                <div className="mt-4 border-t border-white/15 pt-3">
+                  <div className="text-blue-200 text-xs uppercase tracking-wide mb-2 font-semibold">
+                    Reunión por videollamada
+                  </div>
+                  <a
+                    href={zoomLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#2f9e9e] hover:bg-[#268787] text-white text-sm font-semibold px-4 py-2 transition-colors"
+                  >
+                    🎥 Unirse a Zoom
+                  </a>
+                </div>
+              )}
               <div className="mt-4 border-t border-white/15 pt-3">
                 <div className="text-blue-200 text-xs uppercase tracking-wide mb-2 font-semibold">
                   Agregar a mi calendario
