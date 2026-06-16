@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { cancelBooking, createBooking, getBookingsByEmail, getSlotsWithBookings } from '@/lib/clientStorage';
 import { addDays, formatWeekRange, getCurrentMonday, getTimeRows, getWeekDays, isSlotPast, timeToMinutes } from '@/lib/calendar';
+import { buildGoogleCalendarUrl, downloadICS } from '@/lib/ics';
 import Header from '@/components/Header';
 import UserSetup from '@/components/UserSetup';
 
@@ -178,9 +179,18 @@ export default function HomePage() {
         {/* My booking highlight */}
         {myBooking && (() => {
           const slot = slots.find(s => s.id === myBooking.slotId);
-          return slot ? (
+          if (!slot) return null;
+          const calendarEvent = {
+            title: 'Reunión con la coordinadora — EIPNL',
+            description: `Turno reservado por ${userName ?? ''}. Escuela Iberoamericana de PNL & Coaching.`,
+            location: 'Escuela Iberoamericana de PNL & Coaching',
+            date: slot.date,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+          };
+          return (
             <div className="bg-[#1b2a63] text-white rounded-2xl p-5 mb-6 shadow-md">
-              <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-start justify-between flex-wrap gap-3">
                 <div>
                   <div className="text-blue-200 text-xs uppercase tracking-wide mb-1 font-semibold">
                     Tu turno reservado
@@ -197,8 +207,29 @@ export default function HomePage() {
                   Cancelar turno
                 </button>
               </div>
+              <div className="mt-4 border-t border-white/15 pt-3">
+                <div className="text-blue-200 text-xs uppercase tracking-wide mb-2 font-semibold">
+                  Agregar a mi calendario
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href={buildGoogleCalendarUrl(calendarEvent)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/25 text-white text-sm font-semibold px-4 py-2 transition-colors"
+                  >
+                    📅 Google Calendar
+                  </a>
+                  <button
+                    onClick={() => downloadICS(calendarEvent)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/25 text-white text-sm font-semibold px-4 py-2 transition-colors"
+                  >
+                     Apple Calendar (.ics)
+                  </button>
+                </div>
+              </div>
             </div>
-          ) : null;
+          );
         })()}
 
         {/* Calendar */}
