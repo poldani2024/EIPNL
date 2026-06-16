@@ -29,8 +29,14 @@ export interface AppConfig {
 }
 
 export async function getConfig(): Promise<AppConfig> {
-  const snap = await getDoc(configRef);
-  return { zoomLink: (snap.exists() ? (snap.data().zoomLink as string) : '') || '' };
+  // Si falla la lectura (p. ej. reglas de Firestore sin permiso para 'config'),
+  // devolvemos un valor por defecto para no bloquear la carga de turnos.
+  try {
+    const snap = await getDoc(configRef);
+    return { zoomLink: (snap.exists() ? (snap.data().zoomLink as string) : '') || '' };
+  } catch {
+    return { zoomLink: '' };
+  }
 }
 
 export async function setZoomLink(zoomLink: string): Promise<void> {
